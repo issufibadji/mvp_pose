@@ -1,0 +1,56 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Build / distribuição
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+ENV/
+.env
+*.env
+
+# Cache / ferramentas
+.pytest_cache/
+.mypy_cache/
+.pyright/
+ruff_cache/
+.coverage*
+htmlcov/
+.cache/
+*.cache
+*.tmp
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Dados e saídas (mantém só a estrutura)
+data/**
+!data/.gitkeep
+
+out/**
+!out/.gitkeep
+
+# Vídeos e mídias grandes (caso pingue algo fora de data/)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wav
+*.mp3

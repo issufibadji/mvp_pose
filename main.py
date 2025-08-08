@@ -11,7 +11,7 @@ OUT_DIR = BASE_DIR / "out"
 OUT_DIR.mkdir(exist_ok=True)
 
 # ---- Configurações ----
-VIDEO_SOURCE = 0   # 0 = webcam; ou caminho 'data/video.mp4'
+VIDEO_SOURCE = 'data/sitdown_01_fps.mp4'   # 0 = webcam; ou caminho 'data/video.mp4'
 SAVE_KEYPOINTS = True
 VIS_THR = 0.5
 

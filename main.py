@@ -15,8 +15,11 @@ VIDEO_SOURCE = 0   # 0 = webcam; ou caminho 'data/video.mp4'
 SAVE_KEYPOINTS = True
 VIS_THR = 0.5
 
+# Visibilidade mínima exigida para pontos-chave (corta falsos positivos)
+MIN_VIS = 0.6
+
 # Gestos (thresholds de exemplo; ajuste nos seus vídeos)
-ARM = GestureFSM(start_thr=25, peak_thr=60, end_thr=15, name="raise_arm")   # ângulo no ombro
+ARM = GestureFSM(start_thr=20, peak_thr=45, end_thr=12, name="raise_arm")  # ângulo no ombro
 SQUAT = GestureFSM(start_thr=130, peak_thr=90, end_thr=120, name="squat")   # ângulo joelho
 # Sentar: usa queda do quadril normalizada + dobra do joelho (experimental)
 SIT = GestureFSM(start_thr=0.05, peak_thr=0.10, end_thr=0.03, name="sit_down")  # delta_y_hip_norm
@@ -70,6 +73,17 @@ def main():
                 lk = get_xy(pts, "l_knee", W, H);     rk = get_xy(pts, "r_knee", W, H)
                 la = get_xy(pts, "l_ankle", W, H);    ra = get_xy(pts, "r_ankle", W, H)
 
+                # Gate por visibilidade mínima (evita falsos positivos)
+                need = [ls, rs, lh, rh, le, re, lw, rw, lk, rk, la, ra]
+                if any(p[2] < MIN_VIS for p in need):
+                    draw_text(frame, f"Arm raises: {count_arm}", 10, 30)
+                    draw_text(frame, f"Squats: {count_squat}", 10, 60)
+                    draw_text(frame, f"Sit downs: {count_sit}", 10, 90)
+                    cv2.imshow("MVP Pose – MediaPipe", frame)
+                    if cv2.waitKey(1) in (27, ord('q')):
+                        break
+                    continue
+
                 shoulder_mid = (ls[:2] + rs[:2]) / 2.0
                 hip_mid = (lh[:2] + rh[:2]) / 2.0
                 torso = torso_len(shoulder_mid, hip_mid)
@@ -90,11 +104,15 @@ def main():
                 hip_drop_norm = max(0.0, (hip_y - hip_baseline) / (torso if torso > 0 else 1.0))
                 hip_smoothed  = ema(hip_smoothed, hip_drop_norm, alpha=0.5)
 
+                # Portas de entrada extras (gating) para reduzir falsos positivos
+                allow_squat = (knee_val < 110) and (hip_drop_norm > 0.02)
+                allow_sit   = (hip_drop_norm > 0.06) and (knee_val < 120)
+
                 # FSMs
                 t = time.time() - t0
                 evt1 = ARM.step(arm_val, t)
-                evt2 = SQUAT.step(knee_val, t)
-                evt3 = SIT.step(hip_smoothed, t)
+                evt2 = SQUAT.step(knee_val, t) if allow_squat else None
+                evt3 = SIT.step(hip_smoothed, t) if allow_sit else None
 
                 if evt1: count_arm   += 1; ew.writerow([evt1["t"], evt1["gesture"]])
                 if evt2: count_squat += 1; ew.writerow([evt2["t"], evt2["gesture"]])
@@ -120,6 +138,8 @@ def main():
 
             cv2.imshow("MVP Pose – MediaPipe", frame)
             key = cv2.waitKey(1)
+            if key == ord('b') and pts is not None:  # 'b' = baseline
+                hip_baseline = hip_mid[1]
             if key in (27, ord('q')):  # ESC ou q
                 break
 

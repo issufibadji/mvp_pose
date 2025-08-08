@@ -48,7 +48,7 @@ out/**
 !out/.gitkeep
 
 # Vídeos e mídias grandes (caso pingue algo fora de data/)
-*.mp4
+# *.mp4
 *.mov
 *.avi
 *.mkv

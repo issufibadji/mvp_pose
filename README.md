@@ -1,69 +1,64 @@
-# MVP – Reconhecimento de Gestos (MediaPipe + OpenCV)
+# MVP Pose
 
-**Gestos incluídos (prontos):**
-- Levantar braço (D/E, conta o maior)
-- Agachamento (joelho, conta menores ângulos)
-- Sentar (queda de quadril + dobra de joelho) – *experimental*
+Minimal gesture recognition demo using MediaPipe Pose (33 keypoints) and
+simple geometric rules. The pipeline is kept modular so other pose
+providers (MoveNet, RTMPose) can be added later without changing the
+rest of the code.
 
-**Como rodar (webcam):**
+## Installation
+
+Python 3.10+
+
 ```bash
 pip install -r requirements.txt
-python main.py
 ```
 
-**Como rodar em vídeo:**
-Edite `VIDEO_SOURCE` em `main.py` para o caminho de arquivo (ex.: `"data/video.mp4"`).
+### Colab
 
-**Saídas:**
-- Overlay com esqueleto/contadores e FPS
-- `out/events.csv` – log de eventos (tempo e gesto)
-- `out/keypoints.csv` – (opcional) keypoints normalizados e ângulos por frame
+```python
+!pip install -r requirements.txt
+```
 
-**Observações:**
-- Este MVP usa **MediaPipe Pose** (BlazePose), sem treinar nada.
-- O código já é modular para futuramente plugar **RTMPose/MMPose** em `pose_providers/`.
+## Running
 
-
-# OUTRAS 
-
-**1) Ativar o venv no PowerShell**
-- Opção mais segura (só vale para essa sessão): 
+Webcam:
 
 ```bash
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
-
+python main.py --source 0
 ```
-- Se quiser liberar de vez para o seu usuário:
+
+Video file:
 
 ```bash
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-# feche e reabra o PowerShell, depois:
-.\.venv\Scripts\Activate.ps1
-Alternativa (sem mexer na policy): usar o CMD e o .bat
-
-```
-Alternativa (sem mexer na policy): usar o CMD e o .bat
-```bash
-.\.venv\Scripts\activate.bat
+python main.py --source path/to/video.mp4
 ```
 
-**2) Instalar as dependências (faltou o OpenCV)**
--- Depois de ativar o venv:
+Outputs are written to `out/`:
 
-```bash
-python -m pip install -U pip
-pip install opencv-python numpy
-# (e o que mais seu projeto precisar, ex.: mediapipe, etc.)
-```
+* `result_demo.mp4` – overlayed video
+* `events.csv` – detected gesture events (t_sec, event)
+* `keypoints.csv` – raw keypoints per frame
 
-**3) Rodar**
+## Metrics
+
+Given a manually labelled `events_gt.csv`, compute precision/recall/F1:
 
 ```bash
-python main.py
+python -m metrics.evaluate_events out/events.csv events_gt.csv
+```
 
-```
-- Dica: confira a policy atual com:
-```bash
-Get-ExecutionPolicy -List
-```
+## Thresholds
+
+| gesture    | rule summary                      |
+|------------|-----------------------------------|
+| arm_raise  | wrist above shoulder for 3 frames |
+| squat      | knee <100° & hip drop >0.06       |
+| sit_down   | knees 70–110°, low hip variance   |
+
+`--min-vis` controls the visibility gate (default 0.5).
+
+## Acceptance
+
+Process a short video: `out/result_demo.mp4`, `out/events.csv` and
+`out/keypoints.csv` are produced and `metrics/evaluate_events.py` runs
+without errors.

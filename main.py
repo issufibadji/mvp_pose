@@ -25,7 +25,9 @@ def resize_keep_aspect(img, max_w, max_h, allow_upscale=False):
     return cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
 # -------------------- Configurações -----------------
-VIDEO_SOURCE = "video/armraise_04.mp4"   # 0 = webcam; ou caminho de arquivo
+#VIDEO_SOURCE = "video/squat_02_fps.mp4"   # 0 = webcam; ou caminho de arquivo
+#https://github.com/tensorflow/tfjs-models/raw/master/pose-detection/assets/dance_input.gif
+VIDEO_SOURCE = "https://github.com/tensorflow/tfjs-models/raw/master/pose-detection/assets/dance_input.gif"
 SAVE_KEYPOINTS = True
 VIS_THR = 0.5
 
@@ -244,9 +246,9 @@ def main():
             frame = draw_skeleton(frame, pts, IDX, visibility_thr=VIS_THR)
 
             # HUD (inclui debug ao vivo)
-            draw_text(frame, f"Arm raises: {count_arm}", 10, 30)
-            draw_text(frame, f"Squats: {count_squat}", 10, 60)
-            draw_text(frame, f"Sit downs: {count_sit}", 10, 90)
+            draw_text(frame, f"Arm raises(Braco levantado): {count_arm}", 10, 30)
+            draw_text(frame, f"Squats(Agachamento): {count_squat}", 10, 60)
+            draw_text(frame, f"Sit downs(Sente-se): {count_sit}", 10, 90)
             if DEBUG and total_frames > 0:
                 ok_pct = 100.0 * pose_ok_frames / total_frames
                 draw_text(frame, f"Pose OK: {ok_pct:.1f}% ({pose_ok_frames}/{total_frames})", 10, 120)

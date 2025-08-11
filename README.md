@@ -62,3 +62,15 @@ python -m metrics.evaluate_events out/events.csv events_gt.csv
 Process a short video: `out/result_demo.mp4`, `out/events.csv` and
 `out/keypoints.csv` are produced and `metrics/evaluate_events.py` runs
 without errors.
+
+
+Como rodar (cartoon vs real)
+
+Cartoon (seu PNG/MP4 do boneco):
+
+
+python main.py --source "video/armraise_04.mp4" --mode cartoon
+
+Pessoa real (webcam):
+
+python main.py --source 0 --mode real

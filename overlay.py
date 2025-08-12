@@ -65,3 +65,55 @@ def draw_hud(frame: np.ndarray, counts: dict, pose_ok_pct: float, knee_min: floa
     put(f"{L['knee_min']}: {knee_min:.1f}°", 120)
     put(f"{L['hip_drop']}: {hip_drop:.3f}", 145)
     return frame
+
+# --- no final do overlay.py ---
+def draw_avatar(frame_size: tuple[int,int],
+                xy: np.ndarray,
+                vis: np.ndarray,
+                thr: float = 0.5,
+                show_ids: bool = True) -> np.ndarray:
+    """Renderiza um 'avatar' em fundo preto: apenas esqueleto e (opcional) ids dos pontos."""
+    H, W = frame_size[1], frame_size[0]
+    canvas = np.zeros((H, W, 3), dtype=np.uint8)
+
+    def to_px(i):
+        x, y = xy[i]
+        return int(x * W), int(y * H)
+
+    # mesmas arestas do draw_skeleton
+    edges = [
+        ('l_shoulder','r_shoulder'),
+        ('l_shoulder','l_elbow'), ('l_elbow','l_wrist'),
+        ('r_shoulder','r_elbow'), ('r_elbow','r_wrist'),
+        ('l_shoulder','l_hip'), ('r_shoulder','r_hip'), ('l_hip','r_hip'),
+        ('l_hip','l_knee'), ('l_knee','l_ankle'),
+        ('r_hip','r_knee'), ('r_knee','r_ankle'),
+    ]
+    # converter aliases → índices
+    def KP(name): 
+        from pose_providers.mediapipe_pose import KP_INDEX
+        ALIASES = {
+            'l_shoulder':'left_shoulder','r_shoulder':'right_shoulder',
+            'l_elbow':'left_elbow','r_elbow':'right_elbow',
+            'l_wrist':'left_wrist','r_wrist':'right_wrist',
+            'l_hip':'left_hip','r_hip':'right_hip',
+            'l_knee':'left_knee','r_knee':'right_knee',
+            'l_ankle':'left_ankle','r_ankle':'right_ankle',
+        }
+        return KP_INDEX[ALIASES.get(name, name)]
+
+    # linhas
+    for a, b in edges:
+        ia, ib = KP(a), KP(b)
+        if vis[ia] >= thr and vis[ib] >= thr:
+            cv2.line(canvas, to_px(ia), to_px(ib), (200, 200, 200), 2)
+
+    # pontos + ids
+    for i in range(len(vis)):
+        if vis[i] >= thr:
+            cx, cy = to_px(i)
+            cv2.circle(canvas, (cx, cy), 4, (0, 215, 255), -1)
+            if show_ids:
+                cv2.putText(canvas, str(i), (cx+6, cy-6),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 130, 255), 1, cv2.LINE_AA)
+    return canvas

@@ -21,6 +21,7 @@ pip install -r requirements.txt
 
 ## Running
 
+.venv/Scripts/Activate.ps1
 Webcam:
 
 ```bash
@@ -47,16 +48,6 @@ Given a manually labelled `events_gt.csv`, compute precision/recall/F1:
 python -m metrics.evaluate_events out/events.csv events_gt.csv
 ```
 
-## Thresholds
-
-| gesture    | rule summary                      |
-|------------|-----------------------------------|
-| arm_raise  | wrist above shoulder for 3 frames |
-| squat      | knee <100° & hip drop >0.06       |
-| sit_down   | knees 70–110°, low hip variance   |
-
-`--min-vis` controls the visibility gate (default 0.5).
-
 ## Acceptance
 
 Process a short video: `out/result_demo.mp4`, `out/events.csv` and
@@ -66,11 +57,17 @@ without errors.
 
 Como rodar (cartoon vs real)
 
-Cartoon (seu PNG/MP4 do boneco):
-
-
 python main.py --source "video/armraise_04.mp4" --mode cartoon
 
 Pessoa real (webcam):
 
 python main.py --source 0 --mode real
+
+Como usar
+
+python main.py --source video.mp4 --mode cartoon --preview overlay
+
+Avatar apenas na janela e grava os dois:
+python main.py --source 0 --preview avatar --record 1 --record-avatar 1
+
+Mostrar IDs nos pontos do avatar: --avatar-ids 1 (padrão já é 1)

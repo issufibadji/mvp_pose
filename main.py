@@ -5,7 +5,7 @@ import cv2, numpy as np
 
 from features import angles, hip_drop_norm, hip_y, torso_len, ema
 from gestures import ArmRaiseFSM, SquatFSM, SitDownFSM
-from overlay import draw_hud, draw_skeleton
+from overlay import draw_hud, draw_skeleton, draw_avatar
 from pose_providers.mediapipe_pose import KP_INDEX, KP_NAMES, MediaPipePose
 from utils_io import event_writer, keypoint_writer, open_video_capture, open_video_writer, read_rgb
 
@@ -14,11 +14,14 @@ OUT_DIR = BASE_DIR / "out";  DEBUG_DIR = OUT_DIR / "debug"
 OUT_DIR.mkdir(exist_ok=True); DEBUG_DIR.mkdir(exist_ok=True)
 
 def parse_args():
-    ap = argparse.ArgumentParser(description="Simple pose gesture demo.")
+    ap = argparse.ArgumentParser(description="Pose gestures + avatar recorder")
     ap.add_argument("--source", default=0, help="0 for webcam or path to video")
     ap.add_argument("--record", type=int, default=1, help="save result_demo.mp4")
-    ap.add_argument("--mode", choices=["real", "cartoon"], default="real")
+    ap.add_argument("--record-avatar", type=int, default=1, help="save result_avatar.mp4")
+    ap.add_argument("--preview", choices=["overlay","avatar","both"], default="overlay")
+    ap.add_argument("--mode", choices=["real","cartoon"], default="real")
     ap.add_argument("--min-vis", type=float, default=0.5)
+    ap.add_argument("--avatar-ids", type=int, default=1, help="show landmark ids on avatar")
     return ap.parse_args()
 
 def main():
@@ -29,7 +32,7 @@ def main():
 
     provider = MediaPipePose(); provider.start()
 
-    # FSMs calibradas por modo
+    # FSMs
     arm   = ArmRaiseFSM()
     squat = SquatFSM(mode=args.mode)
     sit   = SitDownFSM(mode=args.mode)
@@ -39,7 +42,8 @@ def main():
     ev_f, ev_w = event_writer(OUT_DIR / "events.csv")
     kp_f, kp_w = keypoint_writer(OUT_DIR / "keypoints.csv")
 
-    writer = None; used_codec = None
+    writer_overlay = None; codec_overlay = None
+    writer_avatar  = None; codec_avatar  = None
 
     hip_baseline = None
     hip_ys: list[float] = []
@@ -66,9 +70,7 @@ def main():
             pose_ok = False
             if pose_found:
                 vis_ok = vis[needed_idx] >= args.min_vis
-                pose_ok = int(vis_ok.sum()) >= 8  # tolerância
-
-                # aviso opcional
+                pose_ok = int(vis_ok.sum()) >= 8
                 if not pose_ok and (total_frames % 10 == 0):
                     print("[info] pose detectada mas visibilidade baixa — aumente luz/contraste ou reduza --min-vis")
 
@@ -83,9 +85,7 @@ def main():
                 torso = torso_len(xy)
                 h_y = hip_y(xy)
                 last_hy_for_recalib = h_y
-
-                if hip_baseline is None:
-                    hip_baseline = h_y
+                if hip_baseline is None: hip_baseline = h_y
 
                 hip_drop = hip_drop_norm(h_y, hip_baseline, torso)
                 hip_drop_s = ema(hip_drop_s, hip_drop)
@@ -101,12 +101,10 @@ def main():
                 evt1 = arm.step(xy, t)
                 evt2 = squat.step(knee_min, hip_drop_safe, t)
                 evt3 = sit.step(k_l, k_r, hip_ys, hip_drop_safe, t)
-
                 for evt in (evt1, evt2, evt3):
                     if evt:
                         counts[evt.name] += 1
                         ev_w.writerow([evt.t, evt.name])
-
             else:
                 if t - last_fail_save > 1.0:
                     bgr_dbg = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
@@ -123,20 +121,36 @@ def main():
                 row.extend(["0.0","0.0","0.0"] * len(KP_NAMES))
             kp_w.writerow(row)
 
-            # overlay
+            # OVERLAY (vídeo original + skeleton + HUD)
             bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
             if pose_found: draw_skeleton(bgr, xy, vis)
             ok_pct = 100.0 * pose_frames / max(total_frames, 1)
             draw_hud(bgr, counts, ok_pct, knee_min, float(hip_drop_s or 0.0), lang="pt")
 
-            # gravação
-            if args.record and writer is None:
-                h, w = bgr.shape[:2]
-                writer, used_codec = open_video_writer(OUT_DIR / "result_demo.mp4", (w, h), fps_in)
-            if writer: writer.write(bgr)
+            # AVATAR (fundo preto, só esqueleto)
+            H, W = bgr.shape[:2]
+            avatar = draw_avatar((W, H), xy if pose_found else np.zeros((33,2),np.float32),
+                                 vis if pose_found else np.zeros(33,np.float32),
+                                 thr=args.min_vis, show_ids=bool(args.avatar_ids))
 
-            # UI
-            cv2.imshow("mvp_pose", bgr)
+            # writers
+            if args.record and writer_overlay is None:
+                writer_overlay, codec_overlay = open_video_writer(OUT_DIR / "result_demo.mp4", (W, H), fps_in)
+            if args.record_avatar and writer_avatar is None:
+                writer_avatar,  codec_avatar  = open_video_writer(OUT_DIR / "result_avatar.mp4", (W, H), fps_in)
+
+            if writer_overlay: writer_overlay.write(bgr)
+            if writer_avatar:  writer_avatar.write(avatar)
+
+            # PREVIEW
+            if args.preview == "overlay":
+                cv2.imshow("mvp_pose", bgr)
+            elif args.preview == "avatar":
+                cv2.imshow("mvp_pose", avatar)
+            else:  # both
+                both = np.hstack([bgr, avatar])
+                cv2.imshow("mvp_pose", both)
+
             key = cv2.waitKey(1)
             if key in (27, ord("q")): break
             if key == ord("b") and last_hy_for_recalib is not None:
@@ -145,10 +159,12 @@ def main():
     finally:
         cap.release(); provider.stop(); cv2.destroyAllWindows()
         ev_f.close(); kp_f.close()
-        if writer: writer.release()
+        if writer_overlay: writer_overlay.release()
+        if writer_avatar:  writer_avatar.release()
         if total_frames:
             print(f"Pose OK: {pose_frames/total_frames*100:.1f}% ({pose_frames}/{total_frames})")
-            if used_codec: print(f"Video saved with codec {used_codec}")
+            if codec_overlay: print(f"Overlay saved (codec {codec_overlay})")
+            if codec_avatar:  print(f"Avatar  saved (codec {codec_avatar})")
 
 if __name__ == "__main__":
     main()

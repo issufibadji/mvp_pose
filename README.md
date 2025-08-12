@@ -19,16 +19,21 @@ pip install -r requirements.txt
 !pip install -r requirements.txt
 ```
 
-## Running
+## Usage
 
+Activate your environment (Windows PowerShell):
+
+```
 .venv/Scripts/Activate.ps1
-Webcam:
+```
+
+### Webcam
 
 ```bash
 python main.py --source 0
 ```
 
-Video file:
+### Video file
 
 ```bash
 python main.py --source path/to/video.mp4
@@ -36,9 +41,9 @@ python main.py --source path/to/video.mp4
 
 Outputs are written to `out/`:
 
-* `result_demo.mp4` – overlayed video
-* `events.csv` – detected gesture events (t_sec, event)
-* `keypoints.csv` – raw keypoints per frame
+- `result_demo.mp4` – overlayed video
+- `events.csv` – detected gesture events (`t_sec`, `event`)
+- `keypoints.csv` – raw keypoints per frame
 
 ## Metrics
 
@@ -54,20 +59,29 @@ Process a short video: `out/result_demo.mp4`, `out/events.csv` and
 `out/keypoints.csv` are produced and `metrics/evaluate_events.py` runs
 without errors.
 
+## Example commands (PT-BR)
 
-Como rodar (cartoon vs real)
+- Cartoon vs real:
 
-python main.py --source "video/armraise_04.mp4" --mode cartoon
+  ```bash
+  python main.py --source "video/armraise_04.mp4" --mode cartoon
+  python main.py --source 0 --mode real
+  ```
 
-Pessoa real (webcam):
+- Usar `overlay` na janela de pré-visualização:
 
-python main.py --source 0 --mode real
+  ```bash
+  python main.py --source video.mp4 --mode cartoon --preview overlay
+  ```
 
-Como usar
+- Avatar apenas na janela e gravar ambos os vídeos:
 
-python main.py --source video.mp4 --mode cartoon --preview overlay
+  ```bash
+  python main.py --source 0 --preview avatar --record 1 --record-avatar 1
+  ```
 
-Avatar apenas na janela e grava os dois:
-python main.py --source 0 --preview avatar --record 1 --record-avatar 1
+- Mostrar IDs nos pontos do avatar (padrão já é 1):
 
-Mostrar IDs nos pontos do avatar: --avatar-ids 1 (padrão já é 1)
+  ```bash
+  python main.py --source 0 --avatar-ids 1
+  ```

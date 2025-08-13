@@ -22,6 +22,8 @@ def parse_args():
     ap.add_argument("--mode", choices=["real","cartoon"], default="real")
     ap.add_argument("--min-vis", type=float, default=0.5)
     ap.add_argument("--avatar-ids", type=int, default=1, help="show landmark ids on avatar")
+    ap.add_argument("--target-w", type=int, default=None, help="resize output width")
+    ap.add_argument("--target-h", type=int, default=None, help="resize output height")
     return ap.parse_args()
 
 def main():
@@ -31,6 +33,9 @@ def main():
     fps_in = cap.get(cv2.CAP_PROP_FPS) or 30
 
     provider = MediaPipePose(); provider.start()
+
+    cv2.namedWindow("mvp_pose", cv2.WINDOW_NORMAL)
+    fullscreen = False
 
     # FSMs
     arm   = ArmRaiseFSM()
@@ -132,29 +137,50 @@ def main():
             avatar = draw_avatar((W, H), xy if pose_found else np.zeros((33,2),np.float32),
                                  vis if pose_found else np.zeros(33,np.float32),
                                  thr=args.min_vis, show_ids=bool(args.avatar_ids))
+            out_W, out_H = W, H
+            if args.target_w or args.target_h:
+                tw, th = args.target_w, args.target_h
+                if tw and th:
+                    scale = min(tw / W, th / H)
+                    out_W, out_H = int(W * scale), int(H * scale)
+                elif tw:
+                    scale = tw / W
+                    out_W, out_H = int(tw), int(H * scale)
+                else:
+                    scale = th / H
+                    out_W, out_H = int(W * scale), int(th)
+                bgr_out = cv2.resize(bgr, (out_W, out_H))
+                avatar_out = cv2.resize(avatar, (out_W, out_H))
+            else:
+                bgr_out = bgr
+                avatar_out = avatar
 
             # writers
             if args.record and writer_overlay is None:
-                writer_overlay, codec_overlay = open_video_writer(OUT_DIR / "result_demo.mp4", (W, H), fps_in)
+                writer_overlay, codec_overlay = open_video_writer(OUT_DIR / "result_demo.mp4", (out_W, out_H), fps_in)
             if args.record_avatar and writer_avatar is None:
-                writer_avatar,  codec_avatar  = open_video_writer(OUT_DIR / "result_avatar.mp4", (W, H), fps_in)
+                writer_avatar,  codec_avatar  = open_video_writer(OUT_DIR / "result_avatar.mp4", (out_W, out_H), fps_in)
 
-            if writer_overlay: writer_overlay.write(bgr)
-            if writer_avatar:  writer_avatar.write(avatar)
+            if writer_overlay: writer_overlay.write(bgr_out)
+            if writer_avatar:  writer_avatar.write(avatar_out)
 
             # PREVIEW
             if args.preview == "overlay":
-                cv2.imshow("mvp_pose", bgr)
+                cv2.imshow("mvp_pose", bgr_out)
             elif args.preview == "avatar":
-                cv2.imshow("mvp_pose", avatar)
+                cv2.imshow("mvp_pose", avatar_out)
             else:  # both
-                both = np.hstack([bgr, avatar])
+                both = np.hstack([bgr_out, avatar_out])
                 cv2.imshow("mvp_pose", both)
 
             key = cv2.waitKey(1)
             if key in (27, ord("q")): break
             if key == ord("b") and last_hy_for_recalib is not None:
                 hip_baseline = last_hy_for_recalib
+            if key == ord("f"):
+                fullscreen = not fullscreen
+                cv2.setWindowProperty("mvp_pose", cv2.WND_PROP_FULLSCREEN,
+                                      cv2.WINDOW_FULLSCREEN if fullscreen else cv2.WINDOW_NORMAL)
 
     finally:
         cap.release(); provider.stop(); cv2.destroyAllWindows()
